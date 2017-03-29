@@ -11,6 +11,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "codegen/translator_factory.h"
+#include <include/planner/identity_plan.h>
 
 #include "codegen/arithmetic_translator.h"
 #include "codegen/case_translator.h"
@@ -20,6 +21,7 @@
 #include "codegen/global_group_by_translator.h"
 #include "codegen/hash_group_by_translator.h"
 #include "codegen/hash_join_translator.h"
+#include "codegen/identity_translator.h"
 #include "codegen/negation_translator.h"
 #include "codegen/order_by_translator.h"
 #include "codegen/table_scan_translator.h"
@@ -73,6 +75,12 @@ std::unique_ptr<OperatorTranslator> TranslatorFactory::CreateTranslator(
     case PlanNodeType::ORDERBY: {
       auto &order_by = static_cast<const planner::OrderByPlan &>(plan_node);
       translator = new OrderByTranslator(order_by, context, pipeline);
+      break;
+    }
+    case PlanNodeType::IDENTITY: {
+      const auto &identity =
+          static_cast<const planner::IdentityPlan &>(plan_node);
+      translator = new IdentityTranslator(identity, context, pipeline);
       break;
     }
     default: {

@@ -562,7 +562,10 @@ enum class PlanNodeType {
   COPY = 71,
 
   // Test
-  MOCK = 80
+  MOCK = 80,
+
+  // Identity
+  IDENTITY = 90
 };
 std::string PlanNodeTypeToString(PlanNodeType type);
 PlanNodeType StringToPlanNodeType(const std::string &str);
