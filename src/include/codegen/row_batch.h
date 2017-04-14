@@ -78,6 +78,9 @@ class RowBatch {
     codegen::Value DeriveValue(CodeGen &codegen,
                                const expression::AbstractExpression &expr);
 
+    codegen::Value DeriveTypeValue(CodeGen &codegen,
+                               const expression::AbstractExpression &expr);
+
     // Register the temporary availability of an attribute in this row
     void RegisterAttributeValue(const planner::AttributeInfo *ai,
                                 codegen::Value &val);
