@@ -125,15 +125,11 @@ codegen::QueryCompiler::CompileStats PelotonCodeGenTest::CompileAndExecute(
   codegen::QueryCompiler compiler;
 
   // Run
-
   auto compiled_query = compiler.Compile(plan, consumer, &stats);
 
-  compiled_query->Execute(*txn, consumer_state, nullptr, params ?
-                                                           std::unique_ptr<executor::ExecutorContext> (
-                                                               new executor::ExecutorContext{txn, *params}).get(): nullptr);
+  compiled_query->Execute(*txn, consumer_state, nullptr, params ? std::unique_ptr<executor::ExecutorContext> (
+      new executor::ExecutorContext{txn, *params}).get(): nullptr);
   txn_manager.CommitTransaction(txn);
-
-
 
   return stats;
 }
@@ -155,9 +151,8 @@ codegen::QueryCompiler::CompileStats PelotonCodeGenTest::CompileAndExecuteWithCa
     LOG_DEBUG("No plan found\n");
     auto compiled_query = compiler.Compile(plan, consumer, &stats);
 
-    compiled_query->Execute(*txn, consumer_state, nullptr, params ?
-                                                           std::unique_ptr<executor::ExecutorContext> (
-                                                               new executor::ExecutorContext{txn, *params}).get(): nullptr);
+    compiled_query->Execute(*txn, consumer_state, nullptr, params ? std::unique_ptr<executor::ExecutorContext> (
+        new executor::ExecutorContext{txn, *params}).get(): nullptr);
     codegen::QueryCache::Instance().InsertPlan(plan, std::move(compiled_query));
     txn_manager.CommitTransaction(txn);
 
@@ -165,9 +160,8 @@ codegen::QueryCompiler::CompileStats PelotonCodeGenTest::CompileAndExecuteWithCa
   else {
     LOG_DEBUG("Plan found\n");
     codegen::Query* compiled_query = codegen::QueryCache::Instance().GetQuery(plan);
-    compiled_query->Execute(*txn, consumer_state, nullptr, params ?
-                                                           std::unique_ptr<executor::ExecutorContext> (
-                                                               new executor::ExecutorContext{txn, *params}).get(): nullptr);
+    compiled_query->Execute(*txn, consumer_state, nullptr, params ? std::unique_ptr<executor::ExecutorContext> (
+        new executor::ExecutorContext{txn, *params}).get(): nullptr);
     txn_manager.CommitTransaction(txn);
   }
 
