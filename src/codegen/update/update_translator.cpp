@@ -81,11 +81,12 @@ void UpdateTranslator::Consume(ConsumerContext &,
   CodeGen &codegen = GetCodeGen();
   auto &runtime_state = context.GetRuntimeState();
 
-  llvm::Value *catalog_ptr = GetCatalogPtr();
-
   /*
    * Prepare parameters for calling TransactionRuntime::PerformUpdate
    */
+
+  llvm::Value *tid = row.GetTID(codegen);
+  llvm::Value *catalog_ptr = GetCatalogPtr();
 
   llvm::Value *txn_ptr = context.GetTransactionPtr();
 
@@ -108,15 +109,10 @@ void UpdateTranslator::Consume(ConsumerContext &,
 
   llvm::Value *target_list_ptr = context.GetTargetListPtr();
   /* Loop for collecting target col ids and corresponding derived values */
-  uint32_t idx = 0;
-  llvm::Value *target_list_idx = codegen.Const64(idx);
   llvm::Value *target_list_size = codegen.Const64(target_list_.size());
 
-  Loop loop{codegen,
-          codegen->CreateICmpULT(target_list_idx, target_list_size),
-          {{"targetListIdx", target_list_idx}}};
-  {
-    target_list_idx = loop.GetLoopVar(0);
+  for (uint32_t idx = 0; idx < target_list_.size(); idx ++) {
+    auto target_list_idx = codegen.Const64(idx);
 
     // collect col id
     col_vec.SetValue(codegen, target_list_idx,
@@ -185,16 +181,13 @@ void UpdateTranslator::Consume(ConsumerContext &,
         throw Exception{msg};
       }
     }
-
-    target_list_idx = codegen.Const64(++idx);
-    loop.LoopEnd(codegen->CreateICmpULT(target_list_idx, target_list_size),
-                 {target_list_idx});
   }
 
   llvm::Value *direct_list_ptr = context.GetDirectListPtr();
   llvm::Value *direct_list_size = codegen.Const64(direct_list_.size());
 
   llvm::Value *exec_context = context.GetExecContextPtr();
+  llvm::Value *col_ids = col_vec.GetVectorPtr();
 
   /*
    * Call TrasactionRuntimeProxy::PerformUpdate
@@ -203,8 +196,8 @@ void UpdateTranslator::Consume(ConsumerContext &,
   codegen.CallFunc(
     TransactionRuntimeProxy::_PerformUpdate::GetFunction(codegen),
     {
-      txn_ptr, table_ptr, tile_group, row.GetTID(codegen),
-      col_vec.GetVectorPtr(), target_vec, update_primary_key,
+      txn_ptr, table_ptr, tile_group, tid,
+      col_ids, target_vec, update_primary_key,
       target_list_ptr, target_list_size,
       direct_list_ptr, direct_list_size,
       exec_context
