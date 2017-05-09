@@ -16,6 +16,7 @@
 #include "codegen/pipeline.h"
 #include "planner/delete_plan.h"
 #include "codegen/table.h"
+#include "storage/tile_group.h"
 
 namespace peloton {
 namespace codegen {
@@ -43,9 +44,13 @@ class DeleteTranslator : public OperatorTranslator {
 
  private:
   mutable llvm::Value *table_ptr;
-  static bool delete_wrapper(int64_t tile_group_id, int32_t tuple_id, concurrency::Transaction *txn, storage::DataTable *table);
+  static bool delete_wrapper(
+      int64_t tile_group_id, int32_t tuple_id,
+      concurrency::Transaction *txn, storage::DataTable *table,
+      storage::TileGroup *tile_group);
   const planner::DeletePlan &delete_plan_;
   codegen::Table table_;
+  mutable llvm::Value *tile_group_;
 
   //===--------------------------------------------------------------------===//
   // A structure that proxies delete wrapper function calls

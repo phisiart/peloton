@@ -256,6 +256,8 @@ class RowBatch {
   // If this is nullptr, then this row_batch doesn't record tile group ID.
   llvm::Value *tile_group_id_;
 
+  llvm::Value *tile_group_;
+
   // The range of TIDs this batch covers
   llvm::Value *tid_start_;
   llvm::Value *tid_end_;

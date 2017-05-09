@@ -201,7 +201,8 @@ RowBatch::RowBatch(CompilationContext &ctx, llvm::Value *tile_group_id,
       tid_end_(tid_end),
       num_rows_(nullptr),
       selection_vector_(selection_vector),
-      filtered_(filtered) {}
+      filtered_(filtered) {
+}
 
 void RowBatch::AddAttribute(const planner::AttributeInfo *ai,
                             RowBatch::AttributeAccess *access) {

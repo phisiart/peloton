@@ -61,7 +61,7 @@ PelotonCodeGenTest::~PelotonCodeGenTest() {
 
 // Create all the test tables, but don't load any data
 void PelotonCodeGenTest::CreateTestTables() {
-  const int tuples_per_tilegroup = 32;
+  const int tuples_per_tilegroup = 1000;
   const bool adapt_table = false;
   const bool own_schema = true;
 
@@ -136,11 +136,15 @@ codegen::QueryCompiler::CompileStats PelotonCodeGenTest::CompileAndExecute(
   for (uint32_t i = 0; params != nullptr && i < params->size(); i ++) {
     params_.emplace_back(params->at(i));
   }
+  Timer<std::ratio<1, 1000>> timer;
+  timer.Start();
   compiled_query->Execute(
           *txn, consumer_state, nullptr,
           std::unique_ptr<executor::ExecutorContext> (
                new executor::ExecutorContext{txn, params_}).get()
   );
+  timer.Stop();
+  LOG_INFO("<Compile> Execution Time: %.2f ms\n", timer.GetDuration());
   txn_manager.CommitTransaction(txn);
 
   return stats;

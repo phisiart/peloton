@@ -507,7 +507,9 @@ TEST_F(QueryCacheTest, CachePerformanceTest) {
   Timer<std::ratio<1, 1000>> timer, timer2;
   timer.Start();
 
-  for (int i = 0; i < 10; i++) {
+  int n = 40;
+
+  for (int i = 0; i < n; i++) {
     auto plan = GetHashJoinPlan();
     // Do binding
     planner::BindingContext context;
@@ -523,7 +525,7 @@ TEST_F(QueryCacheTest, CachePerformanceTest) {
   
 
   timer2.Start();
-  for (int i = 0; i < 10; i++) {
+  for (int i = 0; i < n; i++) {
     auto plan = GetHashJoinPlan();
     // Do binding
     planner::BindingContext context;
