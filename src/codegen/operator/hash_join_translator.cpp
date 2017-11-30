@@ -10,6 +10,7 @@
 //
 //===----------------------------------------------------------------------===//
 
+#include "codegen/proxy/runtime_functions_proxy.h"
 #include "codegen/operator/hash_join_translator.h"
 
 #include "codegen/expression/tuple_value_translator.h"
@@ -58,6 +59,16 @@ HashJoinTranslator::HashJoinTranslator(const planner::HashJoinPlan &join,
   if (GetJoinPlan().IsBloomFilterEnabled()) {
     bloom_filter_id_ = runtime_state.RegisterState(
         "bloomfilter", BloomFilterProxy::GetType(codegen));
+  }
+  if (context.MultithreadOn()) {
+    local_hash_tables_id_ = runtime_state.RegisterState(
+        "local_hash_tables",
+        OAHashTableProxy::GetType(codegen)->getPointerTo()
+    );
+    local_bloom_filters_id_ = runtime_state.RegisterState(
+        "local_bloom_filters",
+        BloomFilterProxy::GetType(codegen)->getPointerTo()
+    );
   }
 
   // Prepare translators for the left and right input operators
@@ -133,6 +144,8 @@ HashJoinTranslator::HashJoinTranslator(const planner::HashJoinPlan &join,
   // Create the hash table
   hash_table_ =
       OAHashTable{codegen, left_key_type, left_value_storage_.MaxStorageSize()};
+  local_hash_table_ =
+      OAHashTable{codegen, left_key_type, left_value_storage_.MaxStorageSize()};
   LOG_DEBUG("Finished constructing HashJoinTranslator ...");
 }
 
@@ -147,8 +160,57 @@ void HashJoinTranslator::InitializeState() {
 
 // Produce!
 void HashJoinTranslator::Produce() const {
+  auto &context = GetCompilationContext();
+  auto &codegen = GetCodeGen();
+
+  auto init_callbacks = context.PopParallelInitCallbacks();
+  auto destroy_callbacks = context.PopParallelDestroyCallbacks();
+
+  context.PushParallelInitCallback([&](llvm::Value* ntasks) {
+    auto& runtime_state = context.GetRuntimeState();
+
+    // The type is (HashTable **)
+    auto local_hash_tables_ptr =
+        runtime_state.LoadStatePtr(codegen, local_hash_tables_id_);
+
+    auto key_size = codegen.Const64(local_hash_table_.key_storage_.MaxStorageSize());
+    auto value_size = codegen.Const64(local_hash_table_.value_size_);
+    auto initial_size =
+        codegen.Const64(codegen::util::OAHashTable::kDefaultInitialSize);
+
+    codegen.Call(RuntimeFunctionsProxy::ParallelHashJoinInit, {
+        ntasks, local_hash_tables_ptr, key_size, value_size, initial_size
+    });
+  });
+
+  context.PushParallelDestroyCallback([&](llvm::Value *ntasks) {
+    auto& runtime_state = context.GetRuntimeState();
+
+    // The type is (HashTable *)
+    auto local_hash_tables =
+        runtime_state.LoadStateValue(codegen, local_hash_tables_id_);
+
+    codegen.Call(RuntimeFunctionsProxy::ParallelHashJoinMerge, {
+        ntasks,
+        local_hash_tables,
+        runtime_state.LoadStatePtr(codegen, hash_table_id_)
+    });
+
+    codegen.Call(RuntimeFunctionsProxy::ParallelHashJoinDestroy, {
+        ntasks,
+        local_hash_tables
+    });
+  });
+
   // Let the left child produce tuples which we materialize into the hash-table
   GetCompilationContext().Produce(*join_.GetChild(0));
+
+  for (auto &callback : init_callbacks) {
+    context.PushParallelInitCallback(callback);
+  }
+  for (auto &callback : destroy_callbacks) {
+    context.PushParallelDestroyCallback(callback);
+  }
 
   // Let the right child produce tuples, which we use to probe the hash table
   GetCompilationContext().Produce(*join_.GetChild(1)->GetChild(0));
@@ -256,7 +318,7 @@ void HashJoinTranslator::Consume(ConsumerContext &context,
 }
 
 // The given row is coming from the left child. Insert into hash table
-void HashJoinTranslator::ConsumeFromLeft(ConsumerContext &,
+void HashJoinTranslator::ConsumeFromLeft(ConsumerContext &context,
                                          RowBatch::Row &row) const {
   auto &codegen = GetCodeGen();
 
@@ -276,8 +338,13 @@ void HashJoinTranslator::ConsumeFromLeft(ConsumerContext &,
 
   // Insert tuples from the left side into the hash table
   InsertLeft insert_left{left_value_storage_, vals};
-  hash_table_.Insert(codegen, LoadStatePtr(hash_table_id_), hash, key,
-                     insert_left);
+
+  // Type is (OAHashTable *)
+  llvm::Value *local_hash_tables_ptr = LoadStateValue(local_hash_tables_id_);
+  llvm::Value *local_hash_table_ptr = codegen->CreateGEP(
+      local_hash_tables_ptr, context.GetTaskId());
+  local_hash_table_.Insert(codegen, local_hash_table_ptr, hash, key,
+                           insert_left);
 
   if (GetJoinPlan().IsBloomFilterEnabled()) {
     // Insert tuples into the bloom filter if enabled

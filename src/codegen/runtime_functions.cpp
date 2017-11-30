@@ -102,5 +102,36 @@ void RuntimeFunctions::ThrowOverflowException() {
   throw std::overflow_error("ERROR: overflow");
 }
 
+void RuntimeFunctions::ParallelHashJoinInit(int32_t ntasks,
+                                            util::OAHashTable **hash_tables,
+                                            uint64_t key_size,
+                                            uint64_t value_size,
+                                            uint64_t estimated_num_entries) {
+  LOG_DEBUG("ParallelHashJoinInit(%d, %p)", ntasks, hash_tables);
+  size_t nbytes = sizeof(util::OAHashTable) * ntasks;
+  *hash_tables = reinterpret_cast<util::OAHashTable *>(new char[nbytes]);
+  for (int32_t i = 0; i < ntasks; ++i) {
+    (*hash_tables)[i].Init(key_size, value_size, estimated_num_entries);
+  }
+}
+
+void RuntimeFunctions::ParallelHashJoinMerge(int32_t ntasks,
+                                             util::OAHashTable *sources,
+                                             util::OAHashTable *target) {
+  for (int32_t i = 0; i < ntasks; ++i) {
+    for (auto iter = sources[i].begin(); iter != sources[i].end(); ++iter) {
+      target->Insert(iter.Hash(), iter.Key(), iter.Value());
+    }
+  }
+}
+
+void RuntimeFunctions::ParallelHashJoinDestroy(int32_t ntasks,
+                                               util::OAHashTable *hash_tables) {
+  for (int32_t i = 0; i < ntasks; ++i) {
+    hash_tables[i].Destroy();
+  }
+  delete[] reinterpret_cast<char *>(hash_tables);
+}
+
 }  // namespace codegen
 }  // namespace peloton

@@ -111,7 +111,7 @@ class OAHashTable {
   // This function inserts a key-value pair into the hash-table. This function
   // isn't used from actual query execution code, but is more for testing.
   template <typename Key, typename Value>
-  void Insert(uint64_t hash, Key &k, Value &v);
+  void Insert(uint64_t hash, Key &&k, Value &&v);
 
   // Make room in the hash-table to store a new key-value pair in the provided
   // HashEntry with the provided hash value.
@@ -139,6 +139,7 @@ class OAHashTable {
     // Dereference
     const char *Key();
     const char *Value();
+    uint64_t Hash();
 
    private:
     // Private constructor, so only the HashTable can create an iterator. Begin
@@ -234,7 +235,7 @@ class OAHashTable {
 };
 
 template <typename Key, typename Value>
-void OAHashTable::Insert(uint64_t hash, Key &k, Value &v) {
+void OAHashTable::Insert(uint64_t hash, Key &&k, Value &&v) {
   uint64_t bucket = hash & bucket_mask_;
 
   uint64_t entry_int =

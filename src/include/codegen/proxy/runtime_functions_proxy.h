@@ -14,6 +14,7 @@
 
 #include "codegen/proxy/proxy.h"
 #include "codegen/proxy/type_builder.h"
+#include "codegen/proxy/oa_hash_table_proxy.h"
 #include "codegen/runtime_functions.h"
 
 namespace peloton {
@@ -32,6 +33,9 @@ PROXY(RuntimeFunctions) {
   DECLARE_METHOD(GetTileGroupLayout);
   DECLARE_METHOD(ThrowDivideByZeroException);
   DECLARE_METHOD(ThrowOverflowException);
+  DECLARE_METHOD(ParallelHashJoinInit);
+  DECLARE_METHOD(ParallelHashJoinMerge);
+  DECLARE_METHOD(ParallelHashJoinDestroy);
 };
 
 TYPE_BUILDER(ColumnLayoutInfo, codegen::RuntimeFunctions::ColumnLayoutInfo);

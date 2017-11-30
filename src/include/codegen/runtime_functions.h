@@ -15,6 +15,7 @@
 #include <stdint.h>
 
 #include "type/types.h"
+#include "codegen/util/oa_hash_table.h"
 
 namespace peloton {
 
@@ -63,6 +64,18 @@ class RuntimeFunctions {
   static void ThrowDivideByZeroException();
 
   static void ThrowOverflowException();
+
+  static void ParallelHashJoinInit(int32_t ntasks,
+                                   util::OAHashTable **hash_tables,
+                                   uint64_t key_size, uint64_t value_size,
+                                   uint64_t estimated_num_entries);
+
+  static void ParallelHashJoinMerge(int32_t ntasks,
+                                    util::OAHashTable *sources,
+                                    util::OAHashTable *target);
+
+  static void ParallelHashJoinDestroy(int32_t ntasks,
+                                      util::OAHashTable *hash_tables);
 };
 
 }  // namespace codegen

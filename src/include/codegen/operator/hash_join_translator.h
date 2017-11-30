@@ -141,12 +141,15 @@ class HashJoinTranslator : public OperatorTranslator {
 
   // The ID of the hash-table in the runtime state
   RuntimeState::StateID hash_table_id_;
+  RuntimeState::StateID local_hash_tables_id_;
 
   // The ID of the bloom filter in the runtime state
   RuntimeState::StateID bloom_filter_id_;
+  RuntimeState::StateID local_bloom_filters_id_;
 
   // The hash table we use to perform the join
   OAHashTable hash_table_;
+  OAHashTable local_hash_table_;
 
   // Bloom Filter Accessor
   BloomFilterAccessor bloom_filter_;

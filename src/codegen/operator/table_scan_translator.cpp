@@ -157,6 +157,8 @@ void TableScanTranslator::Produce() const {
     ), codegen.Int32Type(), /*isSigned=*/true);
     codegen.CallPrintf("Number of tasks = %zu\n", {ntasks});
 
+    compilation_context.ParallelInit(ntasks);
+
     // Initialize the CountDown.
     auto count_down_ptr = runtime_state.LoadStatePtr(codegen, count_down_id_);
     codegen.Call(CountDownProxy::Init, {count_down_ptr, ntasks});
@@ -237,6 +239,8 @@ void TableScanTranslator::Produce() const {
     }
 
     codegen.Call(CountDownProxy::Wait, {count_down_ptr});
+
+    compilation_context.ParallelDestroy(ntasks);
 
     codegen.Call(CountDownProxy::Destroy, {count_down_ptr});
 

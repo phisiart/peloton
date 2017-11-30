@@ -119,6 +119,42 @@ void CompilationContext::GeneratePlan(QueryCompiler::CompileStats *stats) {
   }
 }
 
+void CompilationContext::PushParallelInitCallback(
+    std::function<void(llvm::Value*)> callback) {
+  parallal_init_callbacks_.push_back(callback);
+}
+
+std::vector<std::function<void(llvm::Value *)>>
+CompilationContext::PopParallelInitCallbacks() {
+  std::vector<std::function<void(llvm::Value *)>> callbacks
+      = std::move(parallal_init_callbacks_);
+  return callbacks;
+}
+
+void CompilationContext::ParallelInit(llvm::Value* ntasks) {
+  for (auto &callback : PopParallelInitCallbacks()) {
+    callback(ntasks);
+  }
+}
+
+void CompilationContext::PushParallelDestroyCallback(
+    std::function<void(llvm::Value *)> callback) {
+  parallel_destroy_callbacks_.push_back(callback);
+}
+
+std::vector<std::function<void(llvm::Value *)>>
+CompilationContext::PopParallelDestroyCallbacks() {
+  std::vector<std::function<void(llvm::Value *)>> callbacks
+      = std::move(parallel_destroy_callbacks_);
+  return callbacks;
+}
+
+void CompilationContext::ParallelDestroy(llvm::Value* ntasks) {
+  for (auto &callback : PopParallelDestroyCallbacks()) {
+    callback(ntasks);
+  }
+}
+
 // Generate any helper functions that the query needs
 void CompilationContext::GenerateHelperFunctions() {
   // Allow each operator to initialize its state

@@ -166,7 +166,8 @@ class OAHashTable : public HashTable {
   std::pair<llvm::Value *, llvm::Value *> GetDataCountAndPointer(
       CodeGen &codegen, llvm::Value *kv_p, llvm::Value *after_key_p) const;
 
- private:
+// private:
+ public:
   // The storage format we use to store the keys inside HashEntrys
   CompactStorage key_storage_;
 
