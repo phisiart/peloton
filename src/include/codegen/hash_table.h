@@ -130,7 +130,7 @@ class HashTable {
                        IterateCallback &callback) const = 0;
 
   using OnEntry = std::function<
-      void(const std::vector<codegen::Value> &, llvm::Value *)>;
+      void(const std::vector<codegen::Value> &keys, llvm::Value *values)>;
   virtual void Iterate(CodeGen &codegen, llvm::Value *hash_table_ptr,
                        OnEntry on_entry) const = 0;
 
