@@ -83,6 +83,9 @@ class OAHashTable : public HashTable {
   void Iterate(CodeGen &codegen, llvm::Value *ht_ptr,
                HashTable::IterateCallback &callback) const override;
 
+  void Iterate(CodeGen &codegen, llvm::Value *hash_table_ptr,
+                       OnEntry on_entry) const override;
+
   // Generate code to iterate over the entire hash table in vectorized fashion
   void VectorizedIterate(
       CodeGen &codegen, llvm::Value *ht_ptr, Vector &selection_vector,

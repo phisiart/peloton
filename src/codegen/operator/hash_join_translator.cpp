@@ -206,48 +206,22 @@ void HashJoinTranslator::Produce() const {
       llvm::Value *local_hash_table_ptr =
           codegen->CreateGEP(local_hash_tables_ptr, task_id);
 
-      struct MergeCallback : OAHashTable::IterateCallback {
-        explicit MergeCallback(const OAHashTable &hash_table,
-                               llvm::Value *hash_table_ptr,
-                               const CompactStorage &storage)
-            : hash_table_(hash_table),
-              hash_table_ptr_(hash_table_ptr),
-              storage_(storage) {}
+      local_hash_table_.Iterate(
+          codegen, local_hash_table_ptr,
+          [&](const std::vector<codegen::Value> &keys, llvm::Value *values) {
+            std::vector<codegen::Value> vals;
+            left_value_storage_.LoadValues(codegen, values, vals);
 
-        void ProcessEntry(CodeGen &codegen,
-                          const std::vector<codegen::Value> &keys,
-                          llvm::Value *values) const override {
-          std::vector<codegen::Value> vals;
-          storage_.LoadValues(codegen, values, vals);
-
-          // Insert tuples from the left side into the hash table
-          InsertLeft insert_left{storage_, vals};
-
-          hash_table_.Insert(codegen, hash_table_ptr_, /*hash=*/nullptr,
-                             keys, insert_left);
-        }
-
-        const OAHashTable &hash_table_;
-        llvm::Value *hash_table_ptr_;
-        const CompactStorage &storage_;
-      };
-
-      MergeCallback iterate_callback(hash_table_, LoadStatePtr(hash_table_id_),
-                                     left_value_storage_);
-
-      local_hash_table_.Iterate(codegen, local_hash_table_ptr,
-                                iterate_callback);
+            InsertLeft insert_left{left_value_storage_, vals};
+            hash_table_.Insert(codegen, LoadStatePtr(hash_table_id_),
+                               /*hash=*/nullptr, keys, insert_left);
+          }
+      );
 
       loop.LoopEnd(codegen->CreateICmpSLT(next_task_id, ntasks), {
           next_task_id
       });
     }
-
-//    codegen.Call(RuntimeFunctionsProxy::ParallelHashJoinMerge, {
-//        ntasks,
-//        local_hash_tables,
-//        runtime_state.LoadStatePtr(codegen, hash_table_id_)
-//    });
 
     codegen.Call(RuntimeFunctionsProxy::ParallelHashJoinDestroy, {
         ntasks,

@@ -527,6 +527,23 @@ void OAHashTable::Iterate(CodeGen &codegen, llvm::Value *hash_table,
   }
 }
 
+// TODO(zhixunt): We should just deprecate IterateCallback and only have this.
+void OAHashTable::Iterate(CodeGen &codegen, llvm::Value *hash_table_ptr,
+                          OnEntry on_entry) const {
+  struct LambdaIterateCallback : public IterateCallback {
+    explicit LambdaIterateCallback(OnEntry on_entry)
+        : on_entry_(std::move(on_entry)) {}
+    OnEntry on_entry_;
+    void ProcessEntry(CodeGen &,
+                      const std::vector<codegen::Value> &keys,
+                      llvm::Value *values) const override {
+      on_entry_(keys, values);
+    }
+  };
+  LambdaIterateCallback callback(on_entry);
+  Iterate(codegen, hash_table_ptr, callback);
+}
+
 void OAHashTable::VectorizedIterate(
     CodeGen &codegen, llvm::Value *hash_table, Vector &selection_vector,
     OAHashTable::VectorizedIterateCallback &callback) const {

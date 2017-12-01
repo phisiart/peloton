@@ -129,6 +129,11 @@ class HashTable {
   virtual void Iterate(CodeGen &codegen, llvm::Value *ht_ptr,
                        IterateCallback &callback) const = 0;
 
+  using OnEntry = std::function<
+      void(const std::vector<codegen::Value> &, llvm::Value *)>;
+  virtual void Iterate(CodeGen &codegen, llvm::Value *hash_table_ptr,
+                       OnEntry on_entry) const = 0;
+
   // Generate code to iterate over the entire hash table in vectorized fashion
   virtual void VectorizedIterate(CodeGen &codegen, llvm::Value *ht_ptr,
                                  Vector &selection_vector,
