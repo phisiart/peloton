@@ -112,6 +112,7 @@ class HashJoinTranslator : public OperatorTranslator {
     const std::vector<codegen::Value> &right_key_;
   };
 
+ public:
   //===--------------------------------------------------------------------===//
   // The callback used during build phase to materialize the left input tuple
   // into the hash table

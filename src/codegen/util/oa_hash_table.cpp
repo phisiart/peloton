@@ -37,6 +37,8 @@ uint32_t OAHashTable::kInitialKVListCapacity = 8;
 //===----------------------------------------------------------------------===//
 void OAHashTable::Init(uint64_t key_size, uint64_t value_size,
                        uint64_t estimated_num_entries) {
+  LOG_DEBUG("Initialize OAHashTable at %p", this);
+
   // Setup the sizes
   key_size_ = key_size;
   value_size_ = value_size;
@@ -364,7 +366,8 @@ void OAHashTable::Resize(HashEntry **entry_p_p) {
 // them, and then delete the entire array.
 //===----------------------------------------------------------------------===//
 void OAHashTable::Destroy() {
-  LOG_DEBUG("Cleaning up hash table with %llu entries ...", (unsigned long long) num_entries_);
+  LOG_DEBUG("Cleaning up hash table with %llu entries at %p...",
+            (unsigned long long) num_entries_, this);
 
   uint64_t processed_count = 0;
   char *current_entry_char_p = reinterpret_cast<char *>(buckets_);
@@ -444,6 +447,10 @@ const char *OAHashTable::Iterator::Value() {
   } else {
     return curr_->data + table_.key_size_;
   }
+}
+
+uint64_t OAHashTable::Iterator::Hash() {
+  return curr_->hash;
 }
 
 void OAHashTable::Iterator::NextEntry() {

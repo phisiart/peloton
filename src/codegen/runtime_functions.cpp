@@ -120,7 +120,10 @@ void RuntimeFunctions::ParallelHashJoinMerge(int32_t ntasks,
                                              util::OAHashTable *target) {
   for (int32_t i = 0; i < ntasks; ++i) {
     for (auto iter = sources[i].begin(); iter != sources[i].end(); ++iter) {
-      target->Insert(iter.Hash(), iter.Key(), iter.Value());
+      auto hash = iter.Hash();
+      auto key = iter.Key();
+      auto value = iter.Value();
+      target->Insert(hash, key, value);
     }
   }
 }

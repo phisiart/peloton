@@ -111,7 +111,9 @@ class OAHashTable {
   // This function inserts a key-value pair into the hash-table. This function
   // isn't used from actual query execution code, but is more for testing.
   template <typename Key, typename Value>
-  void Insert(uint64_t hash, Key &&k, Value &&v);
+  void Insert(uint64_t hash, Key &k, Value &v);
+
+  void InsertDumb(uint64_t hash, const char *key, const char *val);
 
   // Make room in the hash-table to store a new key-value pair in the provided
   // HashEntry with the provided hash value.
@@ -235,7 +237,7 @@ class OAHashTable {
 };
 
 template <typename Key, typename Value>
-void OAHashTable::Insert(uint64_t hash, Key &&k, Value &&v) {
+void OAHashTable::Insert(uint64_t hash, Key &k, Value &v) {
   uint64_t bucket = hash & bucket_mask_;
 
   uint64_t entry_int =
@@ -268,6 +270,12 @@ void OAHashTable::Insert(uint64_t hash, Key &&k, Value &&v) {
     entry_int = (bucket == num_buckets_) ? reinterpret_cast<uint64_t>(buckets_)
                                          : entry_int + entry_size_;
   }
+}
+
+inline void OAHashTable::InsertDumb(uint64_t hash, const char* key, const char* val) {
+  (void)hash;
+  (void)key;
+  (void)val;
 }
 
 }  // namespace util
