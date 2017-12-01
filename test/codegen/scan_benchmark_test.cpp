@@ -161,7 +161,7 @@ class BenchmarkScanTest : public PelotonCodeGenTest {
       // COMPILE and execute
       codegen::Query::RuntimeStats runtime_stats;
       codegen::QueryCompiler::CompileStats compile_stats = CompileAndExecute(
-          *scan, buffer, reinterpret_cast<char*>(buffer.GetState()));
+          *scan, buffer, reinterpret_cast<char*>(buffer.GetState()), &runtime_stats);
 
       stats.Merge(compile_stats, runtime_stats,
           buffer.GetOutputTuples().size());
@@ -221,7 +221,7 @@ class BenchmarkScanTest : public PelotonCodeGenTest {
   }
 
  private:
-  uint32_t num_rows_to_insert = 10000;
+  uint32_t num_rows_to_insert = 100000;
 };
 
 void PrintName(std::string test_name) {
