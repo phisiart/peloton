@@ -20,6 +20,8 @@ bool MultithreadSupported(const planner::AbstractPlan &plan) {
 // Temporarily turned off...
 //    case PlanNodeType::SEQSCAN:
 //      return true;
+//  	case PlanNodeType::HASHJOIN:
+//  		return true;
     default:
       return false;
   }
