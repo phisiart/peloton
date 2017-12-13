@@ -166,15 +166,15 @@ void BufferingConsumer::ConsumeResult(ConsumerContext &ctx,
 }
 
 const std::vector<WrappedTuple> &BufferingConsumer::GetOutputTuples() const {
-  if (!merged) {
-    LOG_DEBUG("Merging result tuples...");
-    for (auto &chunk : output_chunks_) {
-      for (auto &tuple : chunk) {
-        tuples_.push_back(tuple);
-      }
-    }
-    merged = true;
-  }
+//  if (!merged) {
+//    LOG_DEBUG("Merging result tuples...");
+//    for (auto &chunk : output_chunks_) {
+//      for (auto &tuple : chunk) {
+//        tuples_.push_back(tuple);
+//      }
+//    }
+//    merged = true;
+//  }
   return tuples_;
 }
 

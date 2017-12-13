@@ -18,8 +18,8 @@ namespace codegen {
 bool MultithreadSupported(const planner::AbstractPlan &plan) {
   switch (plan.GetPlanNodeType()) {
 // Temporarily turned off...
-//    case PlanNodeType::SEQSCAN:
-//      return true;
+    case PlanNodeType::SEQSCAN:
+      return true;
 //  	case PlanNodeType::HASHJOIN:
 //  		return true;
     default:

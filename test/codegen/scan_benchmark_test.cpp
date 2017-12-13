@@ -46,7 +46,8 @@ class BenchmarkScanTest : public PelotonCodeGenTest {
  public:
   BenchmarkScanTest() : PelotonCodeGenTest() {
     // Load test table
-    LoadTestTable(TestTableId(), num_rows_to_insert);
+    LoadTestTable(TestTableId(), num_rows_to_insert - 1);
+    std::cout << "Test table has " << GetTestTable(TestTableId()).GetTileGroupCount() << " tile groups" << std::endl;
   }
 
   // uint32_t NumRowsInTestTable() const { return num_rows_to_insert; }
@@ -221,7 +222,7 @@ class BenchmarkScanTest : public PelotonCodeGenTest {
   }
 
  private:
-  uint32_t num_rows_to_insert = 100000;
+  uint32_t num_rows_to_insert = 10000000;
 };
 
 void PrintName(std::string test_name) {
@@ -248,61 +249,70 @@ void PrintConfig(TestConfig &config) {
 // }
 
 TEST_F(BenchmarkScanTest, SelectivityTestWithCompilation) {
-  double selectivities[] = {0.0, 0.25, 0.5, 0.75, 1.0};
+  TestConfig config;
+  config.selectivity = 0.50;
 
-  PrintName("SCAN_SELECTIVITY: COMPILATION");
-  for (double selectivity : selectivities) {
-    TestConfig config;
-    config.selectivity = selectivity;
-
-    auto stats = RunCompiledExperiment(config);
-    PrintConfig(config);
-    stats.PrintStats();
-  }
+  auto stats = RunCompiledExperiment(config);
+  PrintConfig(config);
+  stats.PrintStats();
 }
 
-TEST_F(BenchmarkScanTest, SelectivityTestWithInterpretation) {
-  double selectivities[] = {0.0, 0.25, 0.5, 0.75, 1.0};
+// TEST_F(BenchmarkScanTest, SelectivityTestWithCompilation) {
+//   double selectivities[] = {0.0, 0.25, 0.5, 0.75, 1.0};
 
-  PrintName("SCAN_SELECTIVITY: INTERPRETATION");
-  for (double selectivity : selectivities) {
-    TestConfig config;
-    config.selectivity = selectivity;
+//   PrintName("SCAN_SELECTIVITY: COMPILATION");
+//   for (double selectivity : selectivities) {
+//     TestConfig config;
+//     config.selectivity = selectivity;
 
-    auto stats = RunInterpretedExperiment(config);
-    PrintConfig(config);
-    stats.PrintStats();
-  }
-}
+//     auto stats = RunCompiledExperiment(config);
+//     PrintConfig(config);
+//     stats.PrintStats();
+//   }
+// }
 
-TEST_F(BenchmarkScanTest, PredicateComplexityTestWithCompilation) {
- ScanComplexity complexities[] = { SIMPLE, MODERATE };
+// TEST_F(BenchmarkScanTest, SelectivityTestWithInterpretation) {
+//   double selectivities[] = {0.0, 0.25, 0.5, 0.75, 1.0};
 
- PrintName("SCAN_COMPLEXITY: COMPILATION");
- for (ScanComplexity complexity : complexities) {
-   TestConfig config;
-   config.selectivity = 0.5;
-   config.scan_complexity = complexity;
+//   PrintName("SCAN_SELECTIVITY: INTERPRETATION");
+//   for (double selectivity : selectivities) {
+//     TestConfig config;
+//     config.selectivity = selectivity;
 
-   auto stats = RunCompiledExperiment(config);
-   PrintConfig(config);
-   stats.PrintStats();
- }
-}
+//     auto stats = RunInterpretedExperiment(config);
+//     PrintConfig(config);
+//     stats.PrintStats();
+//   }
+// }
 
-TEST_F(BenchmarkScanTest, PredicateComplexityTestWithInterpretation) {
- ScanComplexity complexities[] = { SIMPLE, MODERATE };
+// TEST_F(BenchmarkScanTest, PredicateComplexityTestWithCompilation) {
+//  ScanComplexity complexities[] = { SIMPLE, MODERATE };
 
- PrintName("SCAN_COMPLEXITY: INTERPRETATION");
- for (ScanComplexity complexity : complexities) {
-   TestConfig config;
-   config.scan_complexity = complexity;
+//  PrintName("SCAN_COMPLEXITY: COMPILATION");
+//  for (ScanComplexity complexity : complexities) {
+//    TestConfig config;
+//    config.selectivity = 0.5;
+//    config.scan_complexity = complexity;
 
-   auto stats = RunInterpretedExperiment(config);
-   PrintConfig(config);
-   stats.PrintStats();
- }
-}
+//    auto stats = RunCompiledExperiment(config);
+//    PrintConfig(config);
+//    stats.PrintStats();
+//  }
+// }
+
+// TEST_F(BenchmarkScanTest, PredicateComplexityTestWithInterpretation) {
+//  ScanComplexity complexities[] = { SIMPLE, MODERATE };
+
+//  PrintName("SCAN_COMPLEXITY: INTERPRETATION");
+//  for (ScanComplexity complexity : complexities) {
+//    TestConfig config;
+//    config.scan_complexity = complexity;
+
+//    auto stats = RunInterpretedExperiment(config);
+//    PrintConfig(config);
+//    stats.PrintStats();
+//  }
+// }
 
 }  // namespace test
 }  // namespace peloton

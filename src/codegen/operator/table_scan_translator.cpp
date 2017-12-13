@@ -106,7 +106,7 @@ void TableScanTranslator::Produce() const {
   llvm::Value *table_ptr = codegen.Call(StorageManagerProxy::GetTableWithOid,
                                         {catalog_ptr, db_oid, table_oid});
   llvm::Value *ntile_groups = table_.GetTileGroupCount(codegen, table_ptr);
-  codegen.CallPrintf("Number of tilegroups = %d\n", {ntile_groups});
+  // codegen.CallPrintf("Number of tilegroups = %d\n", {ntile_groups});
 
   LOG_DEBUG("TableScan on [%u] starting to produce tuples ...",
             GetTable().GetOid());
@@ -125,13 +125,13 @@ void TableScanTranslator::Produce() const {
     });
     {
       auto task_info_ptr = task.GetArgumentByPosition(1);
-      auto task_id = codegen.Call(TaskInfoProxy::GetTaskId, {task_info_ptr});
+      // auto task_id = codegen.Call(TaskInfoProxy::GetTaskId, {task_info_ptr});
       auto tile_group_begin =
           codegen.Call(TaskInfoProxy::GetBegin, {task_info_ptr});
       auto tile_group_end =
           codegen.Call(TaskInfoProxy::GetEnd, {task_info_ptr});
-      codegen.CallPrintf("I am task %d [%zu, %zu)!\n",
-                         {task_id, tile_group_begin, tile_group_end});
+      // codegen.CallPrintf("I am task %d [%zu, %zu)!\n",
+      //                    {task_id, tile_group_begin, tile_group_end});
 
       // Scan the designated portion of the table.
       TaskProduce(tile_group_begin, tile_group_end);
@@ -146,8 +146,8 @@ void TableScanTranslator::Produce() const {
 
     // TODO(zhixunt): This is a tunable parameter.
     llvm::Value *ntile_groups_per_task = codegen.Const64(1);
-    codegen.CallPrintf("Number of tilegroups per task = %zu\n",
-                       {ntile_groups_per_task});
+    // codegen.CallPrintf("Number of tilegroups per task = %zu\n",
+    //                    {ntile_groups_per_task});
 
     llvm::Value *ntasks = codegen.Call(RuntimeFunctionsProxy::NewTaskInfos, {
         ntile_groups_per_task,

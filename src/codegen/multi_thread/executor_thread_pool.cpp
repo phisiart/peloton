@@ -32,6 +32,7 @@ void ExecutorThreadPool::SubmitTask(char *runtime_state,
 
 ExecutorThreadPool::ExecutorThreadPool() {
   auto num_threads = GetNumThreads();
+  num_threads = 4;
   auto num_dedicated_threads = 0;
   pool_.Initialize(num_threads, num_dedicated_threads);
 }
