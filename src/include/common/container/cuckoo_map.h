@@ -59,6 +59,12 @@ class CuckooMap {
   // Checks if the cuckoo_map is empty
   bool IsEmpty() const;
 
+  void ForEach(std::function<void(const KeyType &, const ValueType &)> func) {
+    for (auto &pair : cuckoo_map.lock_table()) {
+      func(pair.first, pair.second);
+    }
+  }
+
  private:
 
   // cuckoo map

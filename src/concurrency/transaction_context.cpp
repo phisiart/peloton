@@ -90,124 +90,113 @@ void TransactionContext::Init(const size_t thread_id,
 }
 
 RWType TransactionContext::GetRWType(const ItemPointer &location) {
-  oid_t tile_group_id = location.block;
-  oid_t tuple_id = location.offset;
-  auto itr = rw_set_.find(tile_group_id);
-  if (itr == rw_set_.end()) {
+  auto it = rw_set_.find(location);
+  if (it == rw_set_.end()) {
     return RWType::INVALID;
   }
-
-  auto inner_itr = itr->second.find(tuple_id);
-  if (inner_itr == itr->second.end()) {
-    return RWType::INVALID;
-  }
-
-  return inner_itr->second;
+  return it->second;
 }
 
 void TransactionContext::RecordRead(const ItemPointer &location) {
-  oid_t tile_group_id = location.block;
-  oid_t tuple_id = location.offset;
-
-  if (IsInRWSet(location)) {
-    PL_ASSERT(rw_set_.at(tile_group_id).at(tuple_id) != RWType::DELETE &&
-              rw_set_.at(tile_group_id).at(tuple_id) != RWType::INS_DEL);
-    return;
-  } else {
-    rw_set_[tile_group_id][tuple_id] = RWType::READ;
+  switch (GetRWType(location)) {
+    case RWType::INVALID: {
+      rw_set_[location] = RWType::READ;
+      break;
+    }
+    case RWType::READ:
+    case RWType::READ_OWN:
+    case RWType::UPDATE:
+    case RWType::INSERT: {
+      break;
+    }
+    case RWType::DELETE:
+    case RWType::INS_DEL: {
+      PL_ASSERT(false && "Bad RWType");
+    }
   }
 }
 
 void TransactionContext::RecordReadOwn(const ItemPointer &location) {
-  oid_t tile_group_id = location.block;
-  oid_t tuple_id = location.offset;
-
-  if (IsInRWSet(location)) {
-    RWType &type = rw_set_.at(tile_group_id).at(tuple_id);
-    if (type == RWType::READ) {
-      type = RWType::READ_OWN;
-      // record write.
-      return;
+  switch (GetRWType(location)) {
+    case RWType::INVALID:
+    case RWType::READ: {
+      rw_set_[location] = RWType::READ_OWN;
+      break;
     }
-    PL_ASSERT(type != RWType::DELETE && type != RWType::INS_DEL);
-  } else {
-    rw_set_[tile_group_id][tuple_id] = RWType::READ_OWN;
+    case RWType::READ_OWN:
+    case RWType::UPDATE:
+    case RWType::INSERT: {
+      break;
+    }
+    case RWType::DELETE:
+    case RWType::INS_DEL: {
+      PL_ASSERT(false && "Bad RWType");
+    }
   }
 }
 
 void TransactionContext::RecordUpdate(const ItemPointer &location) {
-  oid_t tile_group_id = location.block;
-  oid_t tuple_id = location.offset;
-
-  if (IsInRWSet(location)) {
-    RWType &type = rw_set_.at(tile_group_id).at(tuple_id);
-    if (type == RWType::READ || type == RWType::READ_OWN) {
-      type = RWType::UPDATE;
-      // record write.
+  switch (GetRWType(location)) {
+    case RWType::INVALID: {
+      rw_set_[location] = RWType::UPDATE;
+      break;
+    }
+    case RWType::READ:
+    case RWType::READ_OWN: {
+      rw_set_[location] = RWType::UPDATE;
       is_written_ = true;
-
-      return;
+      break;
     }
-    if (type == RWType::UPDATE) {
-      return;
+    case RWType::UPDATE:
+    case RWType::INSERT: {
+      break;
     }
-    if (type == RWType::INSERT) {
-      return;
+    case RWType::DELETE:
+    case RWType::INS_DEL: {
+      PL_ASSERT(false && "Bad RWType");
     }
-    if (type == RWType::DELETE) {
-      PL_ASSERT(false);
-      return;
-    }
-    PL_ASSERT(false);
-  } else {
-    // consider select_for_udpate case.
-    rw_set_[tile_group_id][tuple_id] = RWType::UPDATE;
   }
 }
 
 void TransactionContext::RecordInsert(const ItemPointer &location) {
-  oid_t tile_group_id = location.block;
-  oid_t tuple_id = location.offset;
-
-  if (IsInRWSet(location)) {
-    PL_ASSERT(false);
-  } else {
-    rw_set_[tile_group_id][tuple_id] = RWType::INSERT;
-    ++insert_count_;
+  switch (GetRWType(location)) {
+    case RWType::INVALID: {
+      rw_set_[location] = RWType::INSERT;
+      ++insert_count_;
+      break;
+    }
+    default: {
+      PL_ASSERT(false && "Bad RWType");
+    }
   }
 }
 
 bool TransactionContext::RecordDelete(const ItemPointer &location) {
-  oid_t tile_group_id = location.block;
-  oid_t tuple_id = location.offset;
-
-  if (IsInRWSet(location)) {
-    RWType &type = rw_set_.at(tile_group_id).at(tuple_id);
-    if (type == RWType::READ || type == RWType::READ_OWN) {
-      type = RWType::DELETE;
-      // record write.
+  switch (GetRWType(location)) {
+    case RWType::INVALID: {
+      rw_set_[location] = RWType::DELETE;
+      return false;
+    }
+    case RWType::READ:
+    case RWType::READ_OWN: {
+      rw_set_[location] = RWType::DELETE;
       is_written_ = true;
-
       return false;
     }
-    if (type == RWType::UPDATE) {
-      type = RWType::DELETE;
-
+    case RWType::UPDATE: {
+      rw_set_[location] = RWType::DELETE;
       return false;
     }
-    if (type == RWType::INSERT) {
-      type = RWType::INS_DEL;
+    case RWType::INSERT: {
+      rw_set_[location] = RWType::INS_DEL;
       --insert_count_;
-
       return true;
     }
-    if (type == RWType::DELETE) {
-      PL_ASSERT(false);
+    case RWType::DELETE:
+    case RWType::INS_DEL: {
+      PL_ASSERT(false && "Bad RWType");
       return false;
     }
-    PL_ASSERT(false);
-  } else {
-    rw_set_[tile_group_id][tuple_id] = RWType::DELETE;
   }
   return false;
 }

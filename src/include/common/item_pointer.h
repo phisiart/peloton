@@ -44,6 +44,11 @@ class ItemPointer {
     }
   }
 
+  bool operator==(const ItemPointer &other) const {
+    return std::make_tuple(block, offset)
+           == std::make_tuple(other.block, other.offset);
+  }
+
 } __attribute__((__aligned__(8))) __attribute__((__packed__));
 
 extern ItemPointer INVALID_ITEMPOINTER;
