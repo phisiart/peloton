@@ -1181,10 +1181,6 @@ std::string RWTypeToString(RWType type);
 RWType StringToRWType(const std::string &str);
 std::ostream &operator<<(std::ostream &os, const RWType &type);
 
-// block -> offset -> type
-typedef std::unordered_map<oid_t, std::unordered_map<oid_t, RWType>>
-    ReadWriteSet;
-
 // this enum is to identify why the version should be GC'd.
 enum class GCVersionType {
   INVALID,

@@ -19,6 +19,7 @@
 #include <vector>
 
 #include "catalog/catalog_cache.h"
+#include "common/container/cuckoo_map.h"
 #include "common/exception.h"
 #include "common/item_pointer.h"
 #include "common/platform.h"
@@ -33,6 +34,9 @@ class TriggerData;
 }  // namespace trigger
 
 namespace concurrency {
+
+// block -> offset -> type
+typedef CuckooMap<ItemPointer, RWType, ItemPointerHasher> ReadWriteSet;
 
 //===--------------------------------------------------------------------===//
 // TransactionContext
@@ -105,26 +109,8 @@ class TransactionContext : public Printable {
 
   void ExecOnCommitTriggers();
 
-  bool IsInRWSet(const ItemPointer &location) {
-    oid_t tile_group_id = location.block;
-    oid_t tuple_id = location.offset;
+  ReadWriteSet &GetReadWriteSet() { return rw_set_; }
 
-    spinlock_.Lock();
-    struct ScopeGuard {
-      Spinlock *lock;
-      ~ScopeGuard() { lock->Unlock(); }
-    } guard = {.lock = &spinlock_};
-
-    if (rw_set_.find(tile_group_id) != rw_set_.end() &&
-        rw_set_.at(tile_group_id).find(tuple_id) !=
-            rw_set_.at(tile_group_id).end()) {
-      return true;
-    } else {
-      return false;
-    }
-  }
-
-  inline const ReadWriteSet &GetReadWriteSet() { return rw_set_; }
   inline const CreateDropSet &GetCreateDropSet() { return rw_object_set_; }
 
   inline std::shared_ptr<GCSet> GetGCSetPtr() { return gc_set_; }

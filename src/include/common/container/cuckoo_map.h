@@ -21,14 +21,17 @@
 
 namespace peloton {
 
-// CUCKOO_MAP_TEMPLATE_ARGUMENTS
-#define CUCKOO_MAP_TEMPLATE_ARGUMENTS template <typename KeyType, \
-    typename ValueType>
+#define CUCKOO_MAP_TEMPLATE_ARGUMENTS                                          \
+    template <typename KeyType, typename ValueType,                            \
+              typename Hash>
 
-// CUCKOO_MAP_TYPE
-#define CUCKOO_MAP_TYPE CuckooMap<KeyType, ValueType>
+#define CUCKOO_MAP_TEMPLATE_ARGUMENTS_DEFINITION                               \
+    template <typename KeyType, typename ValueType,                            \
+              typename Hash = DefaultHasher<KeyType>>
 
-CUCKOO_MAP_TEMPLATE_ARGUMENTS
+#define CUCKOO_MAP_TYPE CuckooMap<KeyType, ValueType, Hash>
+
+CUCKOO_MAP_TEMPLATE_ARGUMENTS_DEFINITION
 class CuckooMap {
  public:
 
@@ -59,10 +62,17 @@ class CuckooMap {
   // Checks if the cuckoo_map is empty
   bool IsEmpty() const;
 
+  void Upsert(const KeyType &key, ValueType value,
+              std::function<void(ValueType&)> updater);
+
+  void ForEach(std::function<void(const KeyType &, const ValueType &)> func);
+
+  void ForLoop(std::function<bool(const KeyType &, const ValueType &)> func);
+
  private:
 
   // cuckoo map
-  typedef cuckoohash_map<KeyType, ValueType> cuckoo_map_t;
+  typedef cuckoohash_map<KeyType, ValueType, Hash> cuckoo_map_t;
 
   cuckoo_map_t cuckoo_map;
 };

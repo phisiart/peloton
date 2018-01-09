@@ -15,6 +15,7 @@
 
 #include <cstdint>
 
+#include "murmur3/MurmurHash3.h"
 #include "internal_types.h"
 
 namespace peloton {
@@ -44,6 +45,11 @@ class ItemPointer {
     }
   }
 
+  bool operator==(const ItemPointer &other) const {
+    return std::make_tuple(block, offset)
+           == std::make_tuple(other.block, other.offset);
+  }
+
 } __attribute__((__aligned__(8))) __attribute__((__packed__));
 
 extern ItemPointer INVALID_ITEMPOINTER;
@@ -60,7 +66,7 @@ class ItemPointerComparator {
 
 struct ItemPointerHasher {
   size_t operator()(const ItemPointer &item) const {
-    return std::hash<oid_t>()(item.block) ^ std::hash<oid_t>()(item.offset);
+    return MurmurHash3_x64_128((uint64_t(item.block) << 32) | uint64_t(item.offset));
   }
 };
 

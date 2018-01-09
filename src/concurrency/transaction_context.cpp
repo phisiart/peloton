@@ -90,179 +90,113 @@ void TransactionContext::Init(const size_t thread_id,
 }
 
 RWType TransactionContext::GetRWType(const ItemPointer &location) {
-  oid_t tile_group_id = location.block;
-  oid_t tuple_id = location.offset;
-
-  spinlock_.Lock();
-  struct ScopeGuard {
-    Spinlock *lock;
-    ~ScopeGuard() { lock->Unlock(); }
-  } guard = {.lock = &spinlock_};
-
-  auto itr = rw_set_.find(tile_group_id);
-  if (itr == rw_set_.end()) {
+  RWType type;
+  if (rw_set_.Find(location, type)) {
+    return type;
+  } else {
     return RWType::INVALID;
   }
-
-  auto inner_itr = itr->second.find(tuple_id);
-  if (inner_itr == itr->second.end()) {
-    return RWType::INVALID;
-  }
-
-  return inner_itr->second;
 }
 
 void TransactionContext::RecordRead(const ItemPointer &location) {
-  oid_t tile_group_id = location.block;
-  oid_t tuple_id = location.offset;
-
-  if (IsInRWSet(location)) {
-    spinlock_.Lock();
-    struct ScopeGuard {
-      Spinlock *lock;
-      ~ScopeGuard() { lock->Unlock(); }
-    } guard = {.lock = &spinlock_};
-    PL_ASSERT(rw_set_.at(tile_group_id).at(tuple_id) != RWType::DELETE &&
-              rw_set_.at(tile_group_id).at(tuple_id) != RWType::INS_DEL);
-    return;
-  } else {
-    spinlock_.Lock();
-    struct ScopeGuard {
-      Spinlock *lock;
-      ~ScopeGuard() { lock->Unlock(); }
-    } guard = {.lock = &spinlock_};
-    rw_set_[tile_group_id][tuple_id] = RWType::READ;
-  }
+  rw_set_.Upsert(location, RWType::READ, [](RWType &type) {
+    switch (type) {
+      case RWType::INVALID:
+      case RWType::DELETE:
+      case RWType::INS_DEL: {
+        PL_ASSERT(false && "Bad RWType");
+        break;
+      }
+      default: {
+        break;
+      }
+    }
+  });
 }
 
 void TransactionContext::RecordReadOwn(const ItemPointer &location) {
-  oid_t tile_group_id = location.block;
-  oid_t tuple_id = location.offset;
-
-  if (IsInRWSet(location)) {
-    spinlock_.Lock();
-    struct ScopeGuard {
-      Spinlock *lock;
-      ~ScopeGuard() { lock->Unlock(); }
-    } guard = {.lock = &spinlock_};
-    RWType &type = rw_set_.at(tile_group_id).at(tuple_id);
-    if (type == RWType::READ) {
-      type = RWType::READ_OWN;
-      // record write.
-      return;
+  rw_set_.Upsert(location, RWType::READ_OWN, [](RWType &type) {
+    switch (type) {
+      case RWType::READ: {
+        type = RWType::READ_OWN;
+        break;
+      }
+      case RWType::READ_OWN:
+      case RWType::UPDATE:
+      case RWType::INSERT: {
+        break;
+      }
+      case RWType::INVALID:
+      case RWType::DELETE:
+      case RWType::INS_DEL: {
+        PL_ASSERT(false && "Bad RWType");
+        break;
+      }
     }
-    PL_ASSERT(type != RWType::DELETE && type != RWType::INS_DEL);
-  } else {
-    spinlock_.Lock();
-    struct ScopeGuard {
-      Spinlock *lock;
-      ~ScopeGuard() { lock->Unlock(); }
-    } guard = {.lock = &spinlock_};
-    rw_set_[tile_group_id][tuple_id] = RWType::READ_OWN;
-  }
+  });
 }
 
 void TransactionContext::RecordUpdate(const ItemPointer &location) {
-  oid_t tile_group_id = location.block;
-  oid_t tuple_id = location.offset;
-
-  if (IsInRWSet(location)) {
-    spinlock_.Lock();
-    struct ScopeGuard {
-      Spinlock *lock;
-      ~ScopeGuard() { lock->Unlock(); }
-    } guard = {.lock = &spinlock_};
-    RWType &type = rw_set_.at(tile_group_id).at(tuple_id);
-    if (type == RWType::READ || type == RWType::READ_OWN) {
-      type = RWType::UPDATE;
-      // record write.
-      is_written_ = true;
-
-      return;
+  rw_set_.Upsert(location, RWType::UPDATE, [this](RWType &type) {
+    switch (type) {
+      case RWType::READ:
+      case RWType::READ_OWN: {
+        type = RWType::UPDATE;
+        is_written_ = true;  // Not synchronized, but it is okay.
+        break;
+      }
+      case RWType::UPDATE:
+      case RWType::INSERT: {
+        break;
+      }
+      case RWType::INVALID:
+      case RWType::DELETE:
+      case RWType::INS_DEL: {
+        PL_ASSERT(false && "Bad RWType");
+        break;
+      }
     }
-    if (type == RWType::UPDATE) {
-      return;
-    }
-    if (type == RWType::INSERT) {
-      return;
-    }
-    if (type == RWType::DELETE) {
-      PL_ASSERT(false);
-      return;
-    }
-    PL_ASSERT(false);
-  } else {
-    // consider select_for_udpate case.
-    spinlock_.Lock();
-    struct ScopeGuard {
-      Spinlock *lock;
-      ~ScopeGuard() { lock->Unlock(); }
-    } guard = {.lock = &spinlock_};
-    rw_set_[tile_group_id][tuple_id] = RWType::UPDATE;
-  }
+  });
 }
 
 void TransactionContext::RecordInsert(const ItemPointer &location) {
-  oid_t tile_group_id = location.block;
-  oid_t tuple_id = location.offset;
-
-  if (IsInRWSet(location)) {
-    PL_ASSERT(false);
-  } else {
-    spinlock_.Lock();
-    struct ScopeGuard {
-      Spinlock *lock;
-      ~ScopeGuard() { lock->Unlock(); }
-    } guard = {.lock = &spinlock_};
-    rw_set_[tile_group_id][tuple_id] = RWType::INSERT;
-    ++insert_count_;
-  }
+  rw_set_.Upsert(location, RWType::INSERT, [](RWType &) {
+    PL_ASSERT(false && "Bad RWType");
+  });
+  ++insert_count_;
 }
 
 bool TransactionContext::RecordDelete(const ItemPointer &location) {
-  oid_t tile_group_id = location.block;
-  oid_t tuple_id = location.offset;
-
-  if (IsInRWSet(location)) {
-    spinlock_.Lock();
-    struct ScopeGuard {
-      Spinlock *lock;
-      ~ScopeGuard() { lock->Unlock(); }
-    } guard = {.lock = &spinlock_};
-
-    RWType &type = rw_set_.at(tile_group_id).at(tuple_id);
-    if (type == RWType::READ || type == RWType::READ_OWN) {
-      type = RWType::DELETE;
-      // record write.
-      is_written_ = true;
-
-      return false;
+  bool ret = false;
+  rw_set_.Upsert(location, RWType::DELETE, [this, &ret](RWType &type) {
+    switch (type) {
+      case RWType::READ:
+      case RWType::READ_OWN: {
+        type = RWType::DELETE;
+        is_written_ = true;
+        ret = false;
+        break;
+      }
+      case RWType::UPDATE: {
+        type = RWType::DELETE;
+        ret = false;
+        break;
+      }
+      case RWType::INSERT: {
+        type = RWType::INS_DEL;
+        --insert_count_;
+        ret = true;
+        break;
+      }
+      case RWType::INVALID:
+      case RWType::DELETE:
+      case RWType::INS_DEL: {
+        PL_ASSERT(false && "Bad RWType");
+        break;
+      }
     }
-    if (type == RWType::UPDATE) {
-      type = RWType::DELETE;
-
-      return false;
-    }
-    if (type == RWType::INSERT) {
-      type = RWType::INS_DEL;
-      --insert_count_;
-
-      return true;
-    }
-    if (type == RWType::DELETE) {
-      PL_ASSERT(false);
-      return false;
-    }
-    PL_ASSERT(false);
-  } else {
-    spinlock_.Lock();
-    struct ScopeGuard {
-      Spinlock *lock;
-      ~ScopeGuard() { lock->Unlock(); }
-    } guard = {.lock = &spinlock_};
-    rw_set_[tile_group_id][tuple_id] = RWType::DELETE;
-  }
-  return false;
+  });
+  return ret;
 }
 
 const std::string TransactionContext::GetInfo() const {
